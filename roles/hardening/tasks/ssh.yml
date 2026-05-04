@@ -1,0 +1,85 @@
+# =============================================================================
+# SSH Hardening Tasks (CIS 5.2)
+# =============================================================================
+# Hardens SSH configuration per CIS Benchmark recommendations
+# IMPORTANT: Make sure you have console access before running this
+# =============================================================================
+
+---
+# -----------------------------------------------------------------------------
+# Backup existing config first (always have a rollback plan)
+# -----------------------------------------------------------------------------
+- name: Backup current sshd_config
+  copy:
+    src: /etc/ssh/sshd_config
+    dest: /etc/ssh/sshd_config.backup.{{ ansible_date_time.epoch }}
+    remote_src: yes
+    owner: root
+    group: root
+    mode: '0600'
+
+# -----------------------------------------------------------------------------
+# Deploy hardened sshd_config from template
+# -----------------------------------------------------------------------------
+- name: Deploy hardened SSH configuration
+  template:
+    src: sshd_config.j2
+    dest: /etc/ssh/sshd_config
+    owner: root
+    group: root
+    mode: '0600'
+    validate: '/usr/sbin/sshd -t -f %s'   # Validate before applying
+  notify: restart sshd
+
+# -----------------------------------------------------------------------------
+# CIS 5.2.1 - Ensure permissions on /etc/ssh/sshd_config
+# -----------------------------------------------------------------------------
+- name: Set permissions on sshd_config
+  file:
+    path: /etc/ssh/sshd_config
+    owner: root
+    group: root
+    mode: '0600'
+
+# -----------------------------------------------------------------------------
+# CIS 5.2.2 - Ensure permissions on SSH private host keys
+# -----------------------------------------------------------------------------
+- name: Find SSH private host keys
+  find:
+    paths: /etc/ssh
+    patterns: 'ssh_host_*_key'
+  register: ssh_private_keys
+
+- name: Set permissions on private host keys
+  file:
+    path: "{{ item.path }}"
+    owner: root
+    group: root
+    mode: '0600'
+  loop: "{{ ssh_private_keys.files }}"
+
+# -----------------------------------------------------------------------------
+# CIS 5.2.3 - Ensure permissions on SSH public host keys
+# -----------------------------------------------------------------------------
+- name: Find SSH public host keys
+  find:
+    paths: /etc/ssh
+    patterns: 'ssh_host_*_key.pub'
+  register: ssh_public_keys
+
+- name: Set permissions on public host keys
+  file:
+    path: "{{ item.path }}"
+    owner: root
+    group: root
+    mode: '0644'
+  loop: "{{ ssh_public_keys.files }}"
+
+# -----------------------------------------------------------------------------
+# Ensure SSH service is enabled
+# -----------------------------------------------------------------------------
+- name: Ensure SSH service is enabled and running
+  service:
+    name: sshd
+    state: started
+    enabled: yes

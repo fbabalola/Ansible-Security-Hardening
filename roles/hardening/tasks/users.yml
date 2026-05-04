@@ -1,0 +1,138 @@
+# =============================================================================
+# User Account Hardening Tasks (CIS 5.4, 5.5)
+# =============================================================================
+# Password policies, account settings, permissions
+# =============================================================================
+
+---
+# -----------------------------------------------------------------------------
+# CIS 5.4.1 - Password expiration settings
+# -----------------------------------------------------------------------------
+- name: Set password max days (CIS 5.4.1.1)
+  lineinfile:
+    path: /etc/login.defs
+    regexp: '^PASS_MAX_DAYS'
+    line: "PASS_MAX_DAYS {{ password_max_days }}"
+    state: present
+
+- name: Set password min days (CIS 5.4.1.2)
+  lineinfile:
+    path: /etc/login.defs
+    regexp: '^PASS_MIN_DAYS'
+    line: "PASS_MIN_DAYS {{ password_min_days }}"
+    state: present
+
+- name: Set password warning age (CIS 5.4.1.3)
+  lineinfile:
+    path: /etc/login.defs
+    regexp: '^PASS_WARN_AGE'
+    line: "PASS_WARN_AGE {{ password_warn_age }}"
+    state: present
+
+- name: Set password minimum length
+  lineinfile:
+    path: /etc/login.defs
+    regexp: '^PASS_MIN_LEN'
+    line: "PASS_MIN_LEN {{ password_min_length }}"
+    state: present
+
+# -----------------------------------------------------------------------------
+# CIS 5.4.1.4 - Lock inactive accounts
+# -----------------------------------------------------------------------------
+- name: Set inactive account lock period
+  lineinfile:
+    path: /etc/default/useradd
+    regexp: '^INACTIVE='
+    line: "INACTIVE={{ account_inactive_days }}"
+    state: present
+
+# -----------------------------------------------------------------------------
+# CIS 5.4.2 - Lock system accounts
+# -----------------------------------------------------------------------------
+- name: Lock unnecessary system accounts
+  user:
+    name: "{{ item }}"
+    shell: /sbin/nologin
+    password_lock: yes
+  loop: "{{ lock_system_accounts }}"
+  ignore_errors: yes   # Some accounts might not exist
+
+# -----------------------------------------------------------------------------
+# CIS 5.4.3 - Ensure default group for root is GID 0
+# -----------------------------------------------------------------------------
+- name: Ensure root has GID 0
+  user:
+    name: root
+    group: root
+
+# -----------------------------------------------------------------------------
+# CIS 6.1.10 - Ensure permissions on /etc/passwd
+# -----------------------------------------------------------------------------
+- name: Set permissions on /etc/passwd
+  file:
+    path: /etc/passwd
+    owner: root
+    group: root
+    mode: '0644'
+
+# -----------------------------------------------------------------------------
+# CIS 6.1.11 - Ensure permissions on /etc/shadow
+# -----------------------------------------------------------------------------
+- name: Set permissions on /etc/shadow
+  file:
+    path: /etc/shadow
+    owner: root
+    group: shadow
+    mode: '0640'
+
+# -----------------------------------------------------------------------------
+# CIS 6.1.12 - Ensure permissions on /etc/group
+# -----------------------------------------------------------------------------
+- name: Set permissions on /etc/group
+  file:
+    path: /etc/group
+    owner: root
+    group: root
+    mode: '0644'
+
+# -----------------------------------------------------------------------------
+# CIS 6.2.8 - Ensure users home directories have proper permissions
+# -----------------------------------------------------------------------------
+- name: Find user home directories
+  find:
+    paths: /home
+    file_type: directory
+    recurse: no
+  register: home_dirs
+
+- name: Set home directory permissions
+  file:
+    path: "{{ item.path }}"
+    mode: "{{ home_dir_permissions }}"
+  loop: "{{ home_dirs.files }}"
+  when: item.path != "/home"
+
+# -----------------------------------------------------------------------------
+# CIS 5.3 - Ensure PAM password requirements
+# (Ubuntu/Debian specific - uses pam_pwquality)
+# -----------------------------------------------------------------------------
+- name: Install libpam-pwquality (Debian/Ubuntu)
+  apt:
+    name: libpam-pwquality
+    state: present
+  when: ansible_os_family == "Debian"
+  ignore_errors: yes
+
+- name: Configure password quality requirements
+  lineinfile:
+    path: /etc/security/pwquality.conf
+    regexp: "{{ item.regexp }}"
+    line: "{{ item.line }}"
+    state: present
+  loop:
+    - { regexp: '^minlen', line: "minlen = {{ password_min_length }}" }
+    - { regexp: '^dcredit', line: "dcredit = -1" }   # At least 1 digit
+    - { regexp: '^ucredit', line: "ucredit = -1" }   # At least 1 uppercase
+    - { regexp: '^lcredit', line: "lcredit = -1" }   # At least 1 lowercase
+    - { regexp: '^ocredit', line: "ocredit = -1" }   # At least 1 special char
+  ignore_errors: yes

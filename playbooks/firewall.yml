@@ -1,0 +1,21 @@
+# =============================================================================
+# Firewall Configuration Only
+# =============================================================================
+# Runs just firewall setup tasks
+#
+# Usage:
+#   ansible-playbook playbooks/firewall.yml -i inventory/hosts
+# =============================================================================
+
+---
+- name: Firewall Configuration Only
+  hosts: all
+  become: yes
+  gather_facts: yes
+  
+  vars_files:
+    - ../roles/hardening/defaults/main.yml
+  
+  tasks:
+    - name: Include firewall tasks
+      include_tasks: ../roles/hardening/tasks/firewall.yml

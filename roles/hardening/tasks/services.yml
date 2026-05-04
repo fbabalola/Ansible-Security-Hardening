@@ -1,0 +1,95 @@
+# =============================================================================
+# Service Hardening Tasks (CIS 2.1, 2.2)
+# =============================================================================
+# Disable unnecessary services and remove unused packages
+# =============================================================================
+
+---
+# -----------------------------------------------------------------------------
+# CIS 2.1 - Disable unused services
+# -----------------------------------------------------------------------------
+- name: Disable unnecessary services
+  service:
+    name: "{{ item }}"
+    state: stopped
+    enabled: no
+  loop: "{{ disable_services }}"
+  ignore_errors: yes   # Service might not exist on all systems
+  register: service_result
+
+# -----------------------------------------------------------------------------
+# CIS 2.2 - Remove unnecessary packages
+# -----------------------------------------------------------------------------
+- name: Remove unnecessary packages (Debian/Ubuntu)
+  apt:
+    name: "{{ remove_packages }}"
+    state: absent
+    purge: yes
+  when: ansible_os_family == "Debian"
+  ignore_errors: yes
+
+- name: Remove unnecessary packages (RHEL/CentOS)
+  yum:
+    name: "{{ remove_packages }}"
+    state: absent
+  when: ansible_os_family == "RedHat"
+  ignore_errors: yes
+
+# -----------------------------------------------------------------------------
+# CIS 1.8 - Enable automatic security updates
+# -----------------------------------------------------------------------------
+- name: Install unattended-upgrades (Debian/Ubuntu)
+  apt:
+    name: unattended-upgrades
+    state: present
+  when: 
+    - ansible_os_family == "Debian"
+    - enable_auto_updates | bool
+
+- name: Enable automatic security updates (Debian/Ubuntu)
+  debconf:
+    name: unattended-upgrades
+    question: unattended-upgrades/enable_auto_updates
+    value: "true"
+    vtype: boolean
+  when:
+    - ansible_os_family == "Debian"
+    - enable_auto_updates | bool
+  ignore_errors: yes
+
+- name: Configure unattended-upgrades
+  copy:
+    content: |
+      APT::Periodic::Update-Package-Lists "1";
+      APT::Periodic::Unattended-Upgrade "1";
+      APT::Periodic::AutocleanInterval "7";
+    dest: /etc/apt/apt.conf.d/20auto-upgrades
+    owner: root
+    group: root
+    mode: '0644'
+  when:
+    - ansible_os_family == "Debian"
+    - enable_auto_updates | bool
+
+# -----------------------------------------------------------------------------
+# CIS 1.1.21 - Set noexec option on /tmp (optional)
+# -----------------------------------------------------------------------------
+- name: Check if /tmp is a separate partition
+  shell: mount | grep ' /tmp '
+  register: tmp_mount
+  changed_when: false
+  failed_when: false
+
+- name: Display /tmp mount status
+  debug:
+    msg: |
+      /tmp mount info: {{ tmp_mount.stdout | default('Not a separate mount') }}
+      Note: For noexec on /tmp, /tmp should be a separate partition.
+      Modify /etc/fstab if needed.
+
+# -----------------------------------------------------------------------------
+# Display disabled services
+# -----------------------------------------------------------------------------
+- name: List disabled services
+  debug:
+    msg: "Attempted to disable services: {{ disable_services | join(', ') }}"

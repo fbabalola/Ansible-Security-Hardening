@@ -1,0 +1,51 @@
+# =============================================================================
+# Full Security Hardening Playbook
+# =============================================================================
+# Runs all hardening tasks
+#
+# Usage:
+#   ansible-playbook playbooks/full_hardening.yml -i inventory/hosts
+#
+# Dry run:
+#   ansible-playbook playbooks/full_hardening.yml -i inventory/hosts --check
+#
+# Limit to specific hosts:
+#   ansible-playbook playbooks/full_hardening.yml -i inventory/hosts --limit webservers
+# =============================================================================
+
+---
+- name: Full Security Hardening
+  hosts: all
+  become: yes
+  gather_facts: yes
+  
+  pre_tasks:
+    - name: Display target info
+      debug:
+        msg: |
+          ============================================
+          Starting security hardening
+          Host: {{ inventory_hostname }}
+          OS: {{ ansible_distribution }} {{ ansible_distribution_version }}
+          ============================================
+    
+    - name: Ensure we have Python
+      raw: test -e /usr/bin/python3 || (apt -y update && apt install -y python3)
+      changed_when: false
+      when: ansible_os_family == "Debian"
+  
+  roles:
+    - hardening
+  
+  post_tasks:
+    - name: Final summary
+      debug:
+        msg: |
+          ============================================
+          ✅ Hardening complete on {{ inventory_hostname }}
+          
+          NEXT STEPS:
+          1. Test SSH access before closing this session
+          2. Verify firewall: sudo ufw status (or firewall-cmd --list-all)
+          3. Review /var/log/auth.log for any issues
+          ============================================

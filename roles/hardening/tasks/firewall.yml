@@ -1,0 +1,133 @@
+# =============================================================================
+# Firewall Configuration Tasks (CIS 3.5)
+# =============================================================================
+# Configures UFW (Ubuntu) or firewalld (RHEL/CentOS)
+# =============================================================================
+
+---
+# -----------------------------------------------------------------------------
+# Detect which firewall to use
+# -----------------------------------------------------------------------------
+- name: Check if UFW is available (Debian/Ubuntu)
+  stat:
+    path: /usr/sbin/ufw
+  register: ufw_exists
+
+- name: Check if firewalld is available (RHEL/CentOS)
+  stat:
+    path: /usr/sbin/firewalld
+  register: firewalld_exists
+
+# =============================================================================
+# UFW Configuration (Debian/Ubuntu)
+# =============================================================================
+- name: UFW - Install if not present
+  apt:
+    name: ufw
+    state: present
+  when: 
+    - ansible_os_family == "Debian"
+    - firewall_enabled | bool
+
+- name: UFW - Set default incoming policy to DENY
+  ufw:
+    direction: incoming
+    policy: "{{ firewall_default_incoming }}"
+  when:
+    - ufw_exists.stat.exists
+    - firewall_enabled | bool
+
+- name: UFW - Set default outgoing policy
+  ufw:
+    direction: outgoing
+    policy: "{{ firewall_default_outgoing }}"
+  when:
+    - ufw_exists.stat.exists
+    - firewall_enabled | bool
+
+- name: UFW - Allow SSH from trusted networks
+  ufw:
+    rule: allow
+    port: "{{ ssh_port }}"
+    proto: tcp
+    src: "{{ item }}"
+    comment: "SSH from {{ item }}"
+  loop: "{{ ssh_allowed_networks }}"
+  when:
+    - ufw_exists.stat.exists
+    - firewall_enabled | bool
+
+- name: UFW - Allow configured ports
+  ufw:
+    rule: allow
+    port: "{{ item.port }}"
+    proto: "{{ item.proto }}"
+    comment: "{{ item.comment | default('Allowed port') }}"
+  loop: "{{ firewall_allowed_ports }}"
+  when:
+    - ufw_exists.stat.exists
+    - firewall_enabled | bool
+
+- name: UFW - Enable firewall
+  ufw:
+    state: enabled
+  when:
+    - ufw_exists.stat.exists
+    - firewall_enabled | bool
+
+# =============================================================================
+# Firewalld Configuration (RHEL/CentOS)
+# =============================================================================
+- name: Firewalld - Install if not present
+  yum:
+    name: firewalld
+    state: present
+  when:
+    - ansible_os_family == "RedHat"
+    - firewall_enabled | bool
+
+- name: Firewalld - Start and enable service
+  service:
+    name: firewalld
+    state: started
+    enabled: yes
+  when:
+    - firewalld_exists.stat.exists
+    - firewall_enabled | bool
+
+- name: Firewalld - Allow SSH
+  firewalld:
+    port: "{{ ssh_port }}/tcp"
+    permanent: yes
+    state: enabled
+    immediate: yes
+  when:
+    - firewalld_exists.stat.exists
+    - firewall_enabled | bool
+
+- name: Firewalld - Allow configured ports
+  firewalld:
+    port: "{{ item.port }}/{{ item.proto }}"
+    permanent: yes
+    state: enabled
+    immediate: yes
+  loop: "{{ firewall_allowed_ports }}"
+  when:
+    - firewalld_exists.stat.exists
+    - firewall_enabled | bool
+
+# -----------------------------------------------------------------------------
+# Display firewall status
+# -----------------------------------------------------------------------------
+- name: UFW - Show firewall status
+  command: ufw status verbose
+  register: ufw_status
+  changed_when: false
+  when: ufw_exists.stat.exists
+
+- name: Display UFW status
+  debug:
+    msg: "{{ ufw_status.stdout_lines }}"
+  when: 
+    - ufw_exists.stat.exists
+    - ufw_status is defined

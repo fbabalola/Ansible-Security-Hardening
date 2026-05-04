@@ -1,0 +1,63 @@
+# =============================================================================
+# Hardening Role - Main Tasks
+# =============================================================================
+# This file includes all hardening tasks in order
+# Each include can be run separately via tags
+# =============================================================================
+
+---
+# Show what we're about to do
+- name: Display hardening info
+  debug:
+    msg: |
+      Starting security hardening on {{ inventory_hostname }}
+      SSH Port: {{ ssh_port }}
+      Firewall: {{ 'Enabled' if firewall_enabled else 'Disabled' }}
+
+# -----------------------------------------------------------------------------
+# SSH Hardening (CIS 5.2)
+# -----------------------------------------------------------------------------
+- name: Include SSH hardening tasks
+  include_tasks: ssh.yml
+  tags:
+    - ssh
+    - sshd
+
+# -----------------------------------------------------------------------------
+# Firewall Configuration (CIS 3.5)
+# -----------------------------------------------------------------------------
+- name: Include firewall tasks
+  include_tasks: firewall.yml
+  tags:
+    - firewall
+    - ufw
+    - network
+
+# -----------------------------------------------------------------------------
+# User Account Security (CIS 5.4, 5.5)
+# -----------------------------------------------------------------------------
+- name: Include user account tasks
+  include_tasks: users.yml
+  tags:
+    - users
+    - accounts
+    - passwords
+
+# -----------------------------------------------------------------------------
+# Service Hardening (CIS 2.1, 2.2)
+# -----------------------------------------------------------------------------
+- name: Include service hardening tasks
+  include_tasks: services.yml
+  tags:
+    - services
+    - packages
+
+# Final summary
+- name: Hardening complete
+  debug:
+    msg: |
+      ✅ Security hardening completed on {{ inventory_hostname }}
+      Remember to:
+      - Test SSH access before closing your session
+      - Verify firewall rules with: sudo ufw status
+      - Check for any failed tasks above

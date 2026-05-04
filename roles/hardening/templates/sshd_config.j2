@@ -1,0 +1,131 @@
+# =============================================================================
+# SSH Server Configuration - Hardened
+# =============================================================================
+# Managed by Ansible - DO NOT EDIT MANUALLY
+# Based on CIS Benchmark recommendations
+# Generated: {{ ansible_date_time.iso8601 }}
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Network Settings
+# -----------------------------------------------------------------------------
+Port {{ ssh_port }}
+AddressFamily any
+ListenAddress 0.0.0.0
+
+# -----------------------------------------------------------------------------
+# Authentication (CIS 5.2.4 - 5.2.11)
+# -----------------------------------------------------------------------------
+# CIS 5.2.4 - Disable root login
+PermitRootLogin {{ ssh_permit_root_login }}
+
+# CIS 5.2.5 - Max authentication attempts
+MaxAuthTries {{ ssh_max_auth_tries }}
+
+# CIS 5.2.6 - Limit sessions
+MaxSessions {{ ssh_max_sessions }}
+
+# Public key authentication (preferred)
+PubkeyAuthentication {{ ssh_pubkey_authentication }}
+
+# CIS 5.2.8 - Disable empty passwords
+PermitEmptyPasswords no
+
+# CIS 5.2.9 - Disable password authentication (use keys only)
+PasswordAuthentication {{ ssh_password_authentication }}
+
+# Disable challenge-response auth (can bypass password restrictions)
+ChallengeResponseAuthentication no
+KbdInteractiveAuthentication no
+
+# Use PAM (required for some auth methods)
+UsePAM yes
+
+# -----------------------------------------------------------------------------
+# Security Settings (CIS 5.2.12 - 5.2.18)
+# -----------------------------------------------------------------------------
+# CIS 5.2.12 - Timeout settings
+ClientAliveInterval {{ ssh_client_alive_interval }}
+ClientAliveCountMax {{ ssh_client_alive_count_max }}
+
+# CIS 5.2.13 - Login grace time
+LoginGraceTime {{ ssh_login_grace_time }}
+
+# CIS 5.2.14 - Disable X11 forwarding
+X11Forwarding {{ ssh_x11_forwarding }}
+
+# CIS 5.2.17 - Disable TCP forwarding (prevents tunneling)
+AllowTcpForwarding {{ ssh_allow_tcp_forwarding }}
+
+# CIS 5.2.18 - Disable agent forwarding
+AllowAgentForwarding {{ ssh_allow_agent_forwarding }}
+
+# Disable tunneling
+PermitTunnel no
+
+# Disable user environment (prevents LD_PRELOAD attacks)
+PermitUserEnvironment no
+
+# -----------------------------------------------------------------------------
+# Logging (CIS 5.2.3)
+# -----------------------------------------------------------------------------
+SyslogFacility AUTH
+LogLevel INFO
+
+# -----------------------------------------------------------------------------
+# Cryptography (CIS 5.2.15, 5.2.16)
+# -----------------------------------------------------------------------------
+# Modern ciphers only
+Ciphers aes256-gcm@openssh.com,aes128-gcm@openssh.com,aes256-ctr,aes192-ctr,aes128-ctr
+
+# Strong MACs
+MACs hmac-sha2-512-etm@openssh.com,hmac-sha2-256-etm@openssh.com,hmac-sha2-512,hmac-sha2-256
+
+# Strong key exchange algorithms
+KexAlgorithms curve25519-sha256,curve25519-sha256@libssh.org,diffie-hellman-group16-sha512,diffie-hellman-group18-sha512
+
+# Host key algorithms
+HostKeyAlgorithms ssh-ed25519,ssh-ed25519-cert-v01@openssh.com,rsa-sha2-512,rsa-sha2-256
+
+# -----------------------------------------------------------------------------
+# Access Restrictions
+# -----------------------------------------------------------------------------
+# Uncomment and modify to restrict by user/group
+# AllowUsers admin deploy
+# AllowGroups ssh-users admins
+# DenyUsers root
+
+# -----------------------------------------------------------------------------
+# Banner (CIS 5.2.19)
+# -----------------------------------------------------------------------------
+Banner /etc/issue.net
+
+# -----------------------------------------------------------------------------
+# Other Settings
+# -----------------------------------------------------------------------------
+# Disable compression (CRIME vulnerability)
+Compression no
+
+# Strict mode (check file permissions)
+StrictModes yes
+
+# Ignore user's known hosts
+IgnoreUserKnownHosts yes
+
+# Don't use rhosts
+IgnoreRhosts yes
+
+# Deny host-based auth
+HostbasedAuthentication no
+
+# Print last log
+PrintLastLog yes
+
+# Check /etc/nologin
+UseDNS no
+
+# Accept only connection from specific IPs via firewall, not here
+# If you want to restrict here, uncomment:
+# Match Address {% for net in ssh_allowed_networks %}{{ net }}{{ ',' if not loop.last else '' }}{% endfor %}
+
+#     PermitRootLogin no

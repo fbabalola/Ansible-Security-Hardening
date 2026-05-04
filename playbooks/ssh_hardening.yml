@@ -1,0 +1,27 @@
+# =============================================================================
+# SSH Hardening Only
+# =============================================================================
+# Runs just SSH configuration tasks
+#
+# Usage:
+#   ansible-playbook playbooks/ssh_hardening.yml -i inventory/hosts
+# =============================================================================
+
+---
+- name: SSH Hardening Only
+  hosts: all
+  become: yes
+  gather_facts: yes
+  
+  vars_files:
+    - ../roles/hardening/defaults/main.yml
+  
+  tasks:
+    - name: Include SSH hardening tasks
+      include_tasks: ../roles/hardening/tasks/ssh.yml
+  
+  handlers:
+    - name: restart sshd
+      service:
+        name: sshd
+        state: restarted

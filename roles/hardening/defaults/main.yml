@@ -1,0 +1,103 @@
+# =============================================================================
+# Hardening Role - Default Variables
+# =============================================================================
+# Override these in your playbook or inventory as needed
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# SSH Hardening (CIS 5.2)
+# -----------------------------------------------------------------------------
+ssh_port: 22
+ssh_permit_root_login: "no"
+ssh_password_authentication: "no"
+ssh_pubkey_authentication: "yes"
+ssh_max_auth_tries: 3
+ssh_max_sessions: 4
+ssh_x11_forwarding: "no"
+ssh_allow_tcp_forwarding: "no"
+ssh_client_alive_interval: 300   # 5 minutes
+ssh_client_alive_count_max: 2    # Disconnect after 10 min idle
+ssh_login_grace_time: 60
+ssh_allow_agent_forwarding: "no"
+
+# Networks allowed to SSH (IMPORTANT: Add your IP before running!)
+# CIDR notation
+ssh_allowed_networks:
+  - "10.0.0.0/8"
+  - "172.16.0.0/12"
+  - "192.168.0.0/16"
+  # Add your specific IP:
+  # - "YOUR.PUBLIC.IP/32"
+
+# -----------------------------------------------------------------------------
+# Firewall Configuration (CIS 3.5)
+# -----------------------------------------------------------------------------
+firewall_enabled: yes
+firewall_default_incoming: deny
+firewall_default_outgoing: allow
+
+# Ports to allow (in addition to SSH)
+firewall_allowed_ports:
+  - { port: 80, proto: tcp, comment: "HTTP" }
+  - { port: 443, proto: tcp, comment: "HTTPS" }
+  # Add more as needed:
+  # - { port: 5432, proto: tcp, comment: "PostgreSQL" }
+
+# -----------------------------------------------------------------------------
+# Password Policies (CIS 5.4)
+# -----------------------------------------------------------------------------
+password_max_days: 365
+password_min_days: 1
+password_warn_age: 14
+password_min_length: 14
+password_remember: 5   # Remember last N passwords
+
+# -----------------------------------------------------------------------------
+# User Account Settings (CIS 5.5)
+# -----------------------------------------------------------------------------
+# Days of inactivity before account is disabled
+account_inactive_days: 30
+
+# Lock these accounts if they exist
+lock_system_accounts:
+  - games
+  - news
+  - uucp
+  - proxy
+  - list
+
+# -----------------------------------------------------------------------------
+# Services to Disable (CIS 2.1, 2.2)
+# -----------------------------------------------------------------------------
+# These are commonly unnecessary services
+disable_services:
+  - cups           # Printing
+  - avahi-daemon   # mDNS/Bonjour
+  - rpcbind        # RPC
+  - nfs-server     # NFS
+  - rsync          # Rsync daemon
+  # Uncomment if not needed:
+  # - bluetooth
+  # - postfix
+
+# Packages to remove
+remove_packages:
+  - telnet
+  - rsh-client
+  - talk
+  - xinetd
+  # - ftp  # Uncomment if not needed
+
+# -----------------------------------------------------------------------------
+# Automatic Updates
+# -----------------------------------------------------------------------------
+enable_auto_updates: yes
+
+# -----------------------------------------------------------------------------
+# Filesystem Hardening (CIS 1.1)
+# -----------------------------------------------------------------------------
+# Set noexec on /tmp
+tmp_noexec: yes
+
+# Set proper permissions on /home directories
+home_dir_permissions: "0750"
