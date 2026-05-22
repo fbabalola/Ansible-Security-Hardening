@@ -1,40 +1,25 @@
 # Ansible Security Hardening
 
-Ansible playbooks for automated Linux server hardening based on CIS Benchmarks.
+Ansible playbooks for repeatable Linux hardening practice based on common CIS Benchmark ideas.
 
-## Why This Exists
+I built this because I kept doing the same Linux hardening steps manually: locking down SSH, setting firewall defaults, cleaning up unnecessary services, and checking basic account settings. Ansible gives me a way to apply the same checklist consistently across multiple Linux hosts.
 
-Every time I spun up a new Linux box, I was doing the same 20 things manually:
-- Disable root SSH
-- Configure firewall
-- Set up fail2ban
-- Harden SSH config
-- Remove unnecessary services
+This is a lab hardening baseline, not a one-size-fits-all production standard. The point is to show how I think through Linux hardening and configuration management.
 
-That's dumb. Ansible can do this in 5 minutes across 100 servers.
+## What is in here
 
-## What's In Here
-
-```
+```text
 ansible-security-hardening/
 ├── playbooks/
-│   ├── full_hardening.yml     # Run everything
-│   ├── ssh_hardening.yml      # SSH config only
-│   └── firewall.yml           # UFW/firewalld setup
+│   ├── full_hardening.yml
+│   ├── ssh_hardening.yml
+│   └── firewall.yml
 ├── roles/
 │   └── hardening/
 │       ├── tasks/
-│       │   ├── main.yml
-│       │   ├── ssh.yml
-│       │   ├── firewall.yml
-│       │   ├── users.yml
-│       │   └── services.yml
 │       ├── handlers/
-│       │   └── main.yml
 │       ├── templates/
-│       │   └── sshd_config.j2
 │       └── defaults/
-│           └── main.yml
 ├── inventory/
 │   └── hosts.example
 └── ansible.cfg
@@ -44,193 +29,99 @@ ansible-security-hardening/
 
 ```bash
 # Install Ansible
-pip install ansible --break-system-packages
+pip install ansible
 
 # Or on macOS
 brew install ansible
 
-# Verify
 ansible --version
+```
 
-# You need SSH access to target servers
-# Test with:
+You also need SSH access to your target host:
+
+```bash
 ssh user@your-server hostname
 ```
 
-## Quick Start
+## Quick start
 
 ```bash
-# Clone the repo
-git clone https://github.com/fbabalola/ansible-security-hardening.git
-cd ansible-security-hardening
+git clone https://github.com/fbabalola/Ansible-Security-Hardening.git
+cd Ansible-Security-Hardening
 
-# Copy and edit inventory
 cp inventory/hosts.example inventory/hosts
 nano inventory/hosts
-# Add your server IPs
 
-# Test connectivity (no changes made)
 ansible all -i inventory/hosts -m ping
-
-# Dry run - see what WOULD change
-ansible-playbook playbooks/full_hardening.yml -i inventory/hosts --check
-
-# Actually run it
+ansible-playbook playbooks/full_hardening.yml -i inventory/hosts --check --diff
 ansible-playbook playbooks/full_hardening.yml -i inventory/hosts
 ```
 
-## What Gets Hardened
+## What gets hardened
 
-### SSH Configuration (CIS 5.2)
+### SSH configuration
+
 - Disable root login
-- Disable password authentication (key-only)
+- Disable password authentication when key-based access is ready
 - Reduce login grace time
-- Set max auth tries to 3
+- Limit authentication attempts
 - Disable X11 forwarding
-- Set idle timeout
+- Set idle timeout values
 
-### Firewall (CIS 3.5)
-- Enable UFW (Ubuntu) or firewalld (RHEL/CentOS)
-- Default deny incoming
+### Firewall basics
+
+- Enable UFW or firewalld depending on distro
+- Default deny incoming traffic
 - Allow SSH from trusted networks only
-- Allow specific ports you define
+- Allow only the ports needed for the host role
 
-### User Accounts (CIS 5.4, 5.5)
-- Set password expiration policies
-- Lock inactive accounts
-- Remove unnecessary users
-- Set proper permissions on home directories
+### User and service cleanup
 
-### Services (CIS 2.1, 2.2)
-- Disable unused services
-- Remove unnecessary packages
-- Enable automatic security updates
+- Review password expiration settings
+- Lock inactive accounts where appropriate
+- Remove or disable unnecessary services
+- Apply safer permissions where possible
 
-## Configuration
+## Testing changes safely
 
-Edit `roles/hardening/defaults/main.yml`:
-
-```yaml
-# SSH settings
-ssh_port: 22
-ssh_permit_root_login: "no"
-ssh_password_authentication: "no"
-ssh_max_auth_tries: 3
-ssh_client_alive_interval: 300
-ssh_client_alive_count_max: 2
-
-# Allowed SSH networks (CIDR notation)
-ssh_allowed_networks:
-  - "10.0.0.0/8"
-  - "192.168.1.0/24"
-  # Add your IP here
-
-# Firewall - additional ports to allow
-firewall_allowed_ports:
-  - { port: 80, proto: tcp }
-  - { port: 443, proto: tcp }
-
-# Services to disable
-disable_services:
-  - cups
-  - avahi-daemon
-  - rpcbind
-```
-
-## Run Specific Playbooks
+Always test first:
 
 ```bash
-# Just SSH hardening
-ansible-playbook playbooks/ssh_hardening.yml -i inventory/hosts
-
-# Just firewall
-ansible-playbook playbooks/firewall.yml -i inventory/hosts
-
-# Target specific hosts
-ansible-playbook playbooks/full_hardening.yml -i inventory/hosts --limit webservers
-```
-
-## Testing Changes First
-
-**Always run with `--check` first:**
-
-```bash
-# Dry run - shows what would change without doing it
 ansible-playbook playbooks/full_hardening.yml -i inventory/hosts --check --diff
 ```
 
-**Test on one server first:**
+Test on one host before running against a group:
 
 ```bash
-# Limit to single host
 ansible-playbook playbooks/full_hardening.yml -i inventory/hosts --limit 192.168.1.10
 ```
 
-## Inventory Example
+## Do not lock yourself out
 
-```ini
-# inventory/hosts
+Before running SSH hardening:
 
-[webservers]
-web1 ansible_host=192.168.1.10
-web2 ansible_host=192.168.1.11
+1. Make sure your current IP is allowed.
+2. Keep an existing SSH session open.
+3. Test on one host first.
+4. Have console or cloud dashboard access as a backup.
 
-[databases]
-db1 ansible_host=192.168.1.20
+## CIS-style mapping
 
-[all:vars]
-ansible_user=admin
-ansible_become=yes
-ansible_become_method=sudo
-```
+| Area | Example control idea | What this repo practices |
+|---|---|---|
+| SSH hardening | Secure remote access | Safer SSH configuration |
+| Firewall setup | Limit network exposure | Default-deny style rules |
+| Service cleanup | Reduce attack surface | Disable unnecessary services |
+| Account settings | Improve account hygiene | Review inactive users and permissions |
 
-## CIS Benchmark Mapping
+## Known limitations
 
-| Playbook Task | CIS Control | Description |
-|---------------|-------------|-------------|
-| SSH hardening | 5.2.x | Secure SSH configuration |
-| Firewall setup | 3.5.x | Network firewall rules |
-| Service disable | 2.1.x, 2.2.x | Remove unnecessary services |
-| Password policy | 5.4.x | Account security settings |
-| Filesystem perms | 6.1.x | File permission hardening |
-
-## Troubleshooting
-
-**"Permission denied"**
-```bash
-# Make sure you can SSH manually first
-ssh -v user@server
-
-# Check if sudo works
-ssh user@server "sudo whoami"
-```
-
-**"SSH connection timed out after lockout"**
-```bash
-# You probably locked yourself out by restricting SSH too much
-# Before running, make sure your IP is in ssh_allowed_networks
-# Or keep a console session open as backup
-```
-
-**"Package not found"**
-```bash
-# Different distros have different package names
-# Check you're targeting the right OS
-# The playbooks detect Ubuntu vs CentOS/RHEL automatically
-```
-
-## Don't Lock Yourself Out
-
-⚠️ **Before running SSH hardening:**
-
-1. Make sure your IP is in `ssh_allowed_networks`
-2. Keep an existing SSH session open
-3. Test on one server first
-4. Have console access as backup (especially for cloud VMs)
+- This is a lab hardening baseline, not a complete production policy.
+- SSH and firewall changes should always be tested with `--check` first.
+- Some tasks may need adjustment depending on Ubuntu, CentOS, or RHEL versions.
+- Real environments may require exceptions for business or application needs.
 
 ## Author
 
 Firebami Babalola  
-Security Operations Analyst | SC-200 | Security+
-
-Built this after manually hardening the same servers too many times.
+Security Operations | SC-200 | Security+ | Linux Hardening Practice
